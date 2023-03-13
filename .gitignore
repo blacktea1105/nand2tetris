@@ -1,0 +1,5 @@
+tools
+.DS_Store
+projects/00
+projects/**/*.out
+projects/**/*.zip
