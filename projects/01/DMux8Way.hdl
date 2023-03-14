@@ -16,15 +16,16 @@ CHIP DMux8Way {
     OUT a, b, c, d, e, f, g, h;
 
     PARTS:
-    DMux4Way(in=in, sel=sel[0..1], a=dMuxA, b=dMuxB, c=dMuxC, d=dMuxD);
-    DMux4Way(in=in, sel=sel[0..1], a=dMuxE, b=dMuxF, c=dMuxG, d=dMuxH);
-    Not(in=sel[2], out=notSel2);
-    And(a=dMuxA, b=notSel2, out=a);
-    And(a=dMuxB, b=notSel2, out=b);
-    And(a=dMuxC, b=notSel2, out=c);
-    And(a=dMuxD, b=notSel2, out=d);
-    And(a=dMuxE, b=sel[2], out=e);
-    And(a=dMuxF, b=sel[2], out=f);
-    And(a=dMuxG, b=sel[2], out=g);
-    And(a=dMuxH, b=sel[2], out=h);
+    DMux4Way(in=in, sel=sel[0..1], a=t1a, b=t1b, c=t1c, d=t1d);
+    DMux(in=in, sel=sel[2], a=t2a, b=t2b);
+
+    And(a=t1a, b=t2a, out=a);
+    And(a=t1b, b=t2a, out=b);
+    And(a=t1c, b=t2a, out=c);
+    And(a=t1d, b=t2a, out=d);
+
+    And(a=t1a, b=t2b, out=e);
+    And(a=t1b, b=t2b, out=f);
+    And(a=t1c, b=t2b, out=g);
+    And(a=t1d, b=t2b, out=h);
 }
