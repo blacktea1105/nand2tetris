@@ -43,35 +43,34 @@ CHIP ALU {
 
     PARTS:
     // zx
-    Mux16(a=x, b[0..15]=false, sel=zx, out=tempXInZX);
-
+    Mux16(a=x, b=false, sel=zx, out=zxOut);
+    Not16(in=zxOut, out=zxOutNot);
     // nx
-    Not16(in=tempXInZX, out=notXInNX);
-    Mux16(a=tempXInZX, b=notXInNX, sel=nx, out=tempXInNX);
-
+    Mux16(a=zxOut, b=zxOutNot, sel=nx, out=nxOut);
     // zy
-    Mux16(a=y, b[0..15]=false, sel=zy, out=tempYInZY);
-
+    Mux16(a=y, b=false, sel=zy, out=zyOut);
+    Not16(in=zyOut, out=zyOutNot);
     // ny
-    Not16(in=tempYInZY, out=notYInNY);
-    Mux16(a=tempYInZY, b=notYInNY, sel=ny, out=tempYInNY);
+    Mux16(a=zyOut, b=zyOutNot, sel=ny, out=nyOut);
 
     // f
-    Add16(a=tempXInNX, b=tempYInNY, out=addXY);
-    And16(a=tempXInNX, b=tempYInNY, out=andXY);
-    Mux16(a=andXY, b=addXY, sel=f, out=fOut);
+    And16(a=nxOut, b=nyOut, out=xAndY);
+    Add16(a=nxOut, b=nyOut, out=xAddY);
+    Mux16(a=xAndY, b=xAddY, sel=f, out=fOut);
 
     // no
-    Not16(in=fOut, out=notFOut);
-    Mux16(a=fOut, b=notFOut, sel=no, out=out, out[15]=ngFinalOut, out[0..7]=lowFinalOut, out[8..15]=highFinalOut);
+    Not16(in=fOut, out=fOutNot);
+
+    // out & ng
+    Mux16(a=fOut, b=fOutNot, sel=no,
+        out=out,
+        out[0..7]=outLeft, out[8..15]=outRight,
+        out[15]=ng
+    );
 
     // zr
-    Or8Way(in=lowFinalOut, out=outLowOr8Way);
-    Or8Way(in=highFinalOut, out=outHighOr8Way);
-    Or(a=outLowOr8Way, b=outHighOr8Way, out=outputIsNotZero);
-    Mux(a=true, b=false, sel=outputIsNotZero, out=zr);
-
-    // ng
-    And(a=ngFinalOut, b=true, out=outputIsNg);
-    Mux(a=false, b=true, sel=outputIsNg, out=ng);
+    Or8Way(in=outLeft, out=outLeftOr);
+    Or8Way(in=outRight, out=outRightOr);
+    Or(a=outLeftOr, b=outRightOr, out=outOr);
+    Not(in=outOr, out=zr);
 }

@@ -13,5 +13,38 @@ CHIP Inc16 {
     OUT out[16];
 
     PARTS:
-    Add16(a=in, b[0]=true, out=out);
+    Not(in=in[0], out=out[0]);
+    Not(in=in[0], out=con1);
+
+    Xor(a=in[1], b=in[0], out=out[1]);
+    And(a=in[0], b=in[1], out=con2);
+
+    Xor(a=in[2], b=con2, out=out[2]);
+    And(a=con2, b=in[2], out=con3);
+    Xor(a=in[3], b=con3, out=out[3]);
+    And(a=con3, b=in[3], out=con4);
+    Xor(a=in[4], b=con4, out=out[4]);
+    And(a=con4, b=in[4], out=con5);
+    Xor(a=in[5], b=con5, out=out[5]);
+    And(a=con5, b=in[5], out=con6);
+    Xor(a=in[6], b=con6, out=out[6]);
+    And(a=con6, b=in[6], out=con7);
+    Xor(a=in[7], b=con7, out=out[7]);
+    And(a=con7, b=in[7], out=con8);
+    Xor(a=in[8], b=con8, out=out[8]);
+    And(a=con8, b=in[8], out=con9);
+    Xor(a=in[9], b=con9, out=out[9]);
+    And(a=con9, b=in[9], out=con10);
+    Xor(a=in[10], b=con10, out=out[10]);
+    And(a=con10, b=in[10], out=con11);
+    Xor(a=in[11], b=con11, out=out[11]);
+    And(a=con11, b=in[11], out=con12);
+    Xor(a=in[12], b=con12, out=out[12]);
+    And(a=con12, b=in[12], out=con13);
+    Xor(a=in[13], b=con13, out=out[13]);
+    And(a=con13, b=in[13], out=con14);
+    Xor(a=in[14], b=con14, out=out[14]);
+    And(a=con14, b=in[14], out=con15);
+    Xor(a=in[15], b=con15, out=out[15]);
+    And(a=con15, b=in[15], out=con16);
 }
