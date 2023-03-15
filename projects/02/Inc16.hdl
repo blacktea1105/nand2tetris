@@ -14,7 +14,6 @@ CHIP Inc16 {
 
     PARTS:
     Not(in=in[0], out=out[0]);
-    Not(in=in[0], out=con1);
 
     Xor(a=in[1], b=in[0], out=out[1]);
     And(a=in[0], b=in[1], out=con2);
