@@ -14,6 +14,6 @@ CHIP Bit {
     OUT out;
 
     PARTS:
-    Mux(a=preOut, b=in, sel=load, out=muxIn);
-    DFF(in=muxIn, out=preOut, out=out);
+    Mux(a=dffOut, b=in, sel=load, out=dffIn);
+    DFF(in=dffIn, out=dffOut, out=out);
 }
