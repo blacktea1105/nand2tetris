@@ -5,84 +5,97 @@
 
 // Multiplies R0 and R1 and stores the result in R2.
 // (R0, R1, R2 refer to RAM[0], RAM[1], and RAM[2], respectively.)
+//
+// This program only needs to handle arguments that satisfy
+// R0 >= 0, R1 >= 0, and R0*R1 < 32768.
 
 // Put your code here.
+@R2
+M=0
 
-// declare variables
-    @resultNegative
+// result is negative?
+@R0
+D=M
+@a
+M=D
+
+@R0_NEGATIVE
+D; JLT
+    @postive
+    M=1
+    @r0pos
+    M=1
+
+    @R0_POSITIVE_CHECK_END
+    0; JMP
+(R0_NEGATIVE)
+    @postive
     M=0
 
-    // n1
-    @R0
+    @a
+    M=-M
+(R0_POSITIVE_CHECK_END)
+
+@R1
+D=M
+@b
+M=D
+@R1_NEGATIVE
+D; JLT
+    D=1
+    @postive
+    M=D&M
+
+    @R1_POSITIVE_CHECK_END
+    0; JMP
+(R1_NEGATIVE)
+    D=0
+    @postive
+    M=D&M
+
+    @b
+    M=-M
+(R1_POSITIVE_CHECK_END)
+
+// 
+// |a| >= |b|
+@b
+D=M
+@a
+D=D-M
+@SWITCH_A_B_END
+D; JLT
+    @a
     D=M
-    @n1
-    M=D
-    @CHECKED_N1_NEGATIVE
-    D; JGE
-
-    @n1
-    M=!M
-    M=M+1
-    @resultNegative
-    M=!M
-(CHECKED_N1_NEGATIVE)
-
-    // n2
-    @R1
-    D=M
-    @n2
-    M=D
-    @CHECKED_N2_NEGATIVE
-    D; JGE
-
-    @n2
-    M=!M
-    M=M+1
-    @resultNegative
-    M=!M
-(CHECKED_N2_NEGATIVE)
-
-    // n2 > n1
-    @n1
-    D=M
-    @n2
-    D=M-D
-    @STOP_N_DECLARE
-    D; JLT
-
-    // switch n1, n2
-    @n1
-    D=M
-    @tmp
+    @temp
     M=D
 
-    @n2
+    @b
     D=M
-    @n1
+    @a
     M=D
 
-    @tmp
+    @temp
     D=M
-    @n2
+    @a
     M=D
-(STOP_N_DECLARE)
 
-    @i
-    M=0
+(SWITCH_A_B_END)
 
-    @sum
-    M=0
-
+@i
+M=0
+@sum
+M=0
 (LOOP)
-    // break
+    // end loop branch
     @i
     D=M
-    @n2
-    D=M-D
-    @STOP
+    @b
+    D=D-M
+    @LOOP_END
     D; JEQ
 
-    @n1
+    @a
     D=M
     @sum
     M=D+M
@@ -93,22 +106,20 @@
     @LOOP
     0; JMP
 
-(STOP)
+(LOOP_END)
 
-    @resultNegative
-    D=M
-    @CHECKED_NEGATIVE
-    D; JEQ
-
+@postive
+D=M-1
+@SIGN_END
+D; JEQ
     @sum
-    M=!M
-    M=M+1
+    M=-M
 
-(CHECKED_NEGATIVE)
-    @sum
-    D=M
-    @R2
-    M=D
+(SIGN_END)
+@sum
+D=M
+@R2
+M=D
 
 (END)
     @END

@@ -12,83 +12,108 @@
 // the screen should remain fully clear as long as no key is pressed.
 
 // Put your code here.
-
-// read kbd
-// if kbd then fill
-// else clear
-
-//    @preKey
-//    M=0
-//    @curKey
-//    M=0
-
-//(LOOP)
-//    @curKey
-//    D=M
-//    @preKey
-//    M=D
-
-    // load key
-//    @KBD
-//    D=M
-//    @curKey
-//    M=D
-
-@n
+@pressed
 M=0
 
-@8192
-D=A
-@screenLen
-M=D
+@keep_screen
+M=1
 
-(MAIL_LOOP)
-    @drawIndex
-    M=0
-
+(LOOP)
+    // check press
     @KBD
     D=M
+    @NO_PRESS
+    D; JEQ
 
-    @FILL
-    D; JNE
+        // filled previous?
+        @pressed
+        D=M
+        @FILL_SCREEN_END
+        D; JGT
+            // set fill screen
+            @keep_screen
+            M=0
+        (FILL_SCREEN_END)
 
-    // clear
-    @n
+        // set press
+        @pressed
+        M=1
+
+        @PRESSING_CHECK_END
+        0; JMP
+
+    (NO_PRESS)
+        // removed previous?
+        @pressed
+        D=M
+        @REMOVE_SCREEN_END
+        D; JEQ
+            // remove screen
+            @keep_screen
+            M=0
+
+        (REMOVE_SCREEN_END)
+        @pressed
+        M=0
+
+(PRESSING_CHECK_END)
+
+// keep screen?
+@keep_screen
+D=M-1
+@SET_SCREEN_END
+D; JEQ
+    // set screen
+    @fill_value
     M=0
-    @DRAW
-    0; JMP
-
-(FILL)
-    // fill
-    @n
-    M=-1
-//    @DRAW
-//    0; JMP
-
-(DRAW)
-    @screenLen
+    @pressed
     D=M
-    @drawIndex
-    D=M-D
-    @MAIL_LOOP
-    D; JGE
+    @FILL_VALUE_END
+    D; JEQ
 
-    // current screen address
+        @fill_value
+        M=-1
+
+    (FILL_VALUE_END)
+
+    // addr
     @SCREEN
     D=A
-    @drawIndex
-    D=D+M
-    @curAddr
+    @addr
     M=D
 
-    // draw
-    @n
-    D=M
-    @curAddr
-    A=M
+    // end addr
+    @8192
+    D=D+A
+    @end_addr
     M=D
 
-    @drawIndex
-    M=M+1
-    @DRAW
-    0; JMP
+    (SET_SCREEN_LOOP)
+        @end_addr
+        D=M
+        @addr
+        D=D-M
+        @SET_SCREEN_END
+        D; JEQ
+
+        //
+        @fill_value
+        D=M
+        @addr
+        A=M
+        M=D
+
+        // addr = addr + 1
+        @addr
+        M=M+1
+
+        @SET_SCREEN_LOOP
+        0; JMP
+        
+
+(SET_SCREEN_END)
+@keep_screen
+M=1
+
+@LOOP
+0; JMP
