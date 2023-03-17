@@ -1,0 +1,50 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/Memory.hdl
+
+/**
+ * The complete address space of the Hack computer's memory,
+ * including RAM and memory-mapped I/O. 
+ * The chip facilitates read and write operations, as follows:
+ *     Read:  out(t) = Memory[address(t)](t)
+ *     Write: if load(t-1) then Memory[address(t-1)](t) = in(t-1)
+ * In words: the chip always outputs the value stored at the memory 
+ * location specified by address. If load==1, the in value is loaded 
+ * into the memory location specified by address. This value becomes 
+ * available through the out output from the next time step onward.
+ * Address space rules:
+ * Only the upper 16K+8K+1 words of the Memory chip are used. 
+ * Access to address>0x6000 is invalid. Access to any address in 
+ * the range 0x4000-0x5FFF results in accessing the screen memory 
+ * map. Access to address 0x6000 results in accessing the keyboard 
+ * memory map. The behavior in these addresses is described in the 
+ * Screen and Keyboard chip specifications given in the book.
+ */
+
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    And16(a[0..14]=address, b[0..14]=address, out=addrAnd,
+        out[0]=addr0, out[1]=addr1, out[2]=addr2, out[3]=addr3, out[4]=addr4, out[5]=addr5, out[6]=addr6, out[7]=addr7, out[8]=addr8, out[9]=addr9, out[10]=addr10, out[11]=addr11, out[12]=addr12, out[13]=addr13, out[14]=addr14, out[15]=addr15);
+
+    Mux(a=true, b=false, sel=addr14, out=isRam16k);
+    And(a=isRam16k, b=load, out=ram16kLoad);
+    RAM16K(in=in, load=ram16kLoad, address[0]=addr0 , address[1]=addr1 , address[2]=addr2 , address[3]=addr3 , address[4]=addr4 , address[5]=addr5 , address[6]=addr6 , address[7]=addr7 , address[8]=addr8 , address[9]=addr9 , address[10]=addr10 , address[11]=addr11 , address[12]=addr12 , address[13]=addr13, out=ram16kOut);
+
+    Mux(a=false, b=true, sel=addr14, out=addrGtRam16k);
+    Add16(a[0..14]=address, a[15]=false, b[15]=true, b[14]=false, b[13]=true, b[0..12]=false, out=diffAddrKbd, out[15]=diffAddrKbd15);
+    Mux(a=false, b=true, sel=diffAddrKbd15, out=addrLtKbd);
+    And(a=addrGtRam16k, b=addrLtKbd, out=addrInScreenRange);
+    And(a=addrInScreenRange, b=load, out=screenLoad);
+    Add16(a[0..14]=address, a[15]=false, b[0..13]=true, b[14..15]=false, out=addrDiffRam16k);
+    Mux16(a[0..15]=false, b=addrDiffRam16k, sel=addrInScreenRange, out=screenAddr, out[0]=screenAddr0 , out[1]=screenAddr1 , out[2]=screenAddr2 , out[3]=screenAddr3 , out[4]=screenAddr4 , out[5]=screenAddr5 , out[6]=screenAddr6 , out[7]=screenAddr7 , out[8]=screenAddr8 , out[9]=screenAddr9 , out[10]=screenAddr10 , out[11]=screenAddr11 , out[12]=screenAddr12);
+    Screen(in=in, load=screenLoad, address[0]=screenAddr0 , address[1]=screenAddr1 , address[2]=screenAddr2 , address[3]=screenAddr3 , address[4]=screenAddr4 , address[5]=screenAddr5 , address[6]=screenAddr6 , address[7]=screenAddr7 , address[8]=screenAddr8 , address[9]=screenAddr9 , address[10]=screenAddr10 , address[11]=screenAddr11 , address[12]=screenAddr12, out=screenOut);
+
+    Keyboard(out=kbdOut);
+
+    Mux16(a=kbdOut, b=ram16kOut, sel=isRam16k, out=outTmp1);
+    Mux16(a=outTmp1, b=screenOut, sel=addrInScreenRange, out=out);
+}
