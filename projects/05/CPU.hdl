@@ -39,56 +39,70 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // instruction
-    And16(a=instruction, b=instruction, out[15]=opCode,
-        out[12]=compBit, out[11]=compBit1, out[10]=compBit2, out[9]=compBit3, out[8]=compBit4, out[7]=compBit5, out[6]=compBit6,
-        out[5]=aDestBit, out[4]=dDestBit, out[3]=mDestBit,
-        out[2]=jumpBit1, out[1]=jumpBit2, out[0]=jumpBit3,
-        // A instruction
-        out[0..14]=addressMTmp
-        );
-    Not(in=opCode, out=isAInstruction);
-    Mux16(a[0..15]=false, b[0..14]=addressMTmp, sel=isAInstruction, out=aInstructionAddr);
-
-    // A register
-    And(a=opCode, b=aDestBit, out=cInstADest);
-    Mux16(a=aInstructionAddr, b=aluOutput, sel=cInstADest, out=aRegisterInput);
-    Or(a=aDestBit, b=isAInstruction, out=aRegisterLoad);
-    Register(in=aRegisterInput, load=aRegisterLoad, out=aRegisterOut, out[0..14]=addressM);
-
     // D register
-    And(a=opCode, b=dDestBit, out=dRegisterLoad);
-    Register(in=aluOutput, load=dRegisterLoad, out=dRegisterOut);
+    And(a=instruction[15], b=instruction[4], out=dRegLoad);
+    Register(in=aluOut, load=dRegLoad, out=dRegOut);
 
-    // A or M ALU input
-    Not(in=compBit, out=useA);
-    Mux16(a=inM, b=aRegisterOut, sel=useA, out=amAluInput);
+    // A register load
+    And(a=instruction[15], b=instruction[5], out=cInstAReg);
+    Not(in=instruction[15], out=aInst);
+    Or(a=aInst, b=cInstAReg, out=aRegLoad);
+
+    // A Register
+    Mux16(
+        a[15]=false, a[0..14]=instruction[0..14],
+        b=aluOut,
+        sel=cInstAReg,
+        out=aRegIn
+    );
+    Register(in=aRegIn, load=aRegLoad,
+        out=aRegOut,
+        out[0..14]=addressM
+    );
+
+    // jump
+    DMux8Way(in=true,
+        // sel[0]=instruction[2],
+        // sel[1]=instruction[1],
+        // sel[2]=instruction[0],
+        sel[0..2]=instruction[0..2],
+        a=jmpNullBit, b=jmpJGTBit, c=jmpJEQBit, d=jmpJGEBit,
+        e=jmpJLTBit, f=jmpNEBit, g=jmpLEBit, h=jmpJMP
+    );
+    Or(a=aluNg, b=aluZr, out=aluNgOrZr);
+    Not(in=aluNgOrZr, out=aluPg);
+    Or(a=aluZr, b=aluPg, out=aluZrOrPg);
+    Not(in=aluZr, out=aluZrNot);
+
+    And(a=jmpJGTBit, b=aluPg, out=jmpJGT);
+    And(a=jmpJEQBit, b=aluZr, out=jmpJEQ);
+    And(a=jmpJGEBit, b=aluZrOrPg, out=jmpJGE);
+    And(a=jmpJLTBit, b=aluNg, out=jmpJLT);
+    And(a=jmpNEBit, b=aluZrNot, out=jmpNE);
+    And(a=jmpLEBit, b=aluNgOrZr, out=gjmpLE);
+
+    Or8Way(
+        in[0]=false, in[1]=jmpJGT, in[2]=jmpJEQ, in[3]=jmpJGE,
+        in[4]=jmpJLT, in[5]=jmpNE, in[6]=gjmpLE, in[7]=jmpJMP,
+        out=canJmp
+    );
+    And(a=instruction[15], b=canJmp, out=pcLoad);
+
+    // PC
+    PC(in=aRegOut ,load=pcLoad ,inc=true ,reset=reset ,out[0..14]=pc);
+
+    // writeM
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    // ALU in D or M register
+    Mux16(a=aRegOut, b=inM, sel=instruction[12], out=aluInDOrAReg);
 
     // ALU
-    ALU(x=dRegisterOut, y=amAluInput,
-        zx=compBit1, nx=compBit2, zy=compBit3, ny=compBit4, f=compBit5, no=compBit6,
-        out=aluOutput, out=outM,
-        zr=aluZr, ng=aluNg);
-    Not(in=aluZr, out=notAluZr);
-    Not(in=aluNg, out=notAluNg);
-    And(a=notAluZr, b=notAluNg, out=aluOutGT);
-    Or(a=aluZr, b=notAluNg, out=aluOutGE);
-    And(a=notAluZr, b=aluNg, out=aluOutLT);
-    Or(a=aluZr, b=aluNg, out=aluOutLE);
-
-    // PC / instruction
-    DMux8Way(in=true, sel[0]=jumpBit3, sel[1]=jumpBit2, sel[2]=jumpBit1,
-        a=jumpNull, b=jumpGT, c=jumpEQ, d=jumpGE, e=jumpLT, f=jumpNE, g=jumpLE, h=jumpMP);
-    Mux(a=false, b=aluOutGT, sel=jumpGT, out=jumpTmpGT);
-    Mux(a=jumpTmpGT, b=aluZr, sel=jumpEQ, out=jumpTmpEQ);
-    Mux(a=jumpTmpEQ, b=aluOutGE, sel=jumpGE, out=jumpTmpGE);
-    Mux(a=jumpTmpGE, b=aluOutLT, sel=jumpLT, out=jumpTmpLT);
-    Mux(a=jumpTmpLT, b=notAluZr, sel=jumpNE, out=jumpTmpNE);
-    Mux(a=jumpTmpNE, b=aluOutLE, sel=jumpLE, out=jumpTmpLE);
-    Mux(a=jumpTmpLE, b=true, sel=jumpMP, out=jumpTmpMP);
-    Mux(a=false, b=jumpTmpMP, sel=opCode, out=jumpBit);
-    PC(in=aRegisterOut, load=jumpBit, inc=true, reset=reset, out[0..14]=pc);
-
-    // write M
-    And(a=mDestBit, b=opCode, out=writeM);
+    ALU(x=dRegOut, y=aluInDOrAReg,
+        zx=instruction[11], nx=instruction[10],
+        zy=instruction[9], ny=instruction[8],
+        f=instruction[7], no=instruction[6],
+        out=aluOut, out=outM,
+        zr=aluZr, ng=aluNg
+    );
 }

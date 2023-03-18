@@ -27,24 +27,38 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    And16(a[0..14]=address, b[0..14]=address, out=addrAnd,
-        out[0]=addr0, out[1]=addr1, out[2]=addr2, out[3]=addr3, out[4]=addr4, out[5]=addr5, out[6]=addr6, out[7]=addr7, out[8]=addr8, out[9]=addr9, out[10]=addr10, out[11]=addr11, out[12]=addr12, out[13]=addr13, out[14]=addr14, out[15]=addr15);
+    // ram addr
+    Not(in=address[14], out=ramAddr);
 
-    Mux(a=true, b=false, sel=addr14, out=isRam16k);
-    And(a=isRam16k, b=load, out=ram16kLoad);
-    RAM16K(in=in, load=ram16kLoad, address[0]=addr0 , address[1]=addr1 , address[2]=addr2 , address[3]=addr3 , address[4]=addr4 , address[5]=addr5 , address[6]=addr6 , address[7]=addr7 , address[8]=addr8 , address[9]=addr9 , address[10]=addr10 , address[11]=addr11 , address[12]=addr12 , address[13]=addr13, out=ram16kOut);
+    // screen addr
+    Not(in=address[13],out=addr13Not);
+    And(a=address[14], b=addr13Not, out=screenAddr);
 
-    Mux(a=false, b=true, sel=addr14, out=addrGtRam16k);
-    Add16(a[0..14]=address, a[15]=false, b[15]=true, b[14]=false, b[13]=true, b[0..12]=false, out=diffAddrKbd, out[15]=diffAddrKbd15);
-    Mux(a=false, b=true, sel=diffAddrKbd15, out=addrLtKbd);
-    And(a=addrGtRam16k, b=addrLtKbd, out=addrInScreenRange);
-    And(a=addrInScreenRange, b=load, out=screenLoad);
-    Add16(a[0..14]=address, a[15]=false, b[0..13]=true, b[14..15]=false, out=addrDiffRam16k);
-    Mux16(a[0..15]=false, b=addrDiffRam16k, sel=addrInScreenRange, out=screenAddr, out[0]=screenAddr0 , out[1]=screenAddr1 , out[2]=screenAddr2 , out[3]=screenAddr3 , out[4]=screenAddr4 , out[5]=screenAddr5 , out[6]=screenAddr6 , out[7]=screenAddr7 , out[8]=screenAddr8 , out[9]=screenAddr9 , out[10]=screenAddr10 , out[11]=screenAddr11 , out[12]=screenAddr12);
-    Screen(in=in, load=screenLoad, address[0]=screenAddr0 , address[1]=screenAddr1 , address[2]=screenAddr2 , address[3]=screenAddr3 , address[4]=screenAddr4 , address[5]=screenAddr5 , address[6]=screenAddr6 , address[7]=screenAddr7 , address[8]=screenAddr8 , address[9]=screenAddr9 , address[10]=screenAddr10 , address[11]=screenAddr11 , address[12]=screenAddr12, out=screenOut);
+    // keyboard addr
+    // And(a=address[14], b=address[13], out=addr0And1);
+    // Or8Way(in=address[0..7], out=kbOrAddr0);
+    // Or8Way(in=address[5..12], out=kbOrAddr1);
+    // Or(a=kbOrAddr0, b=kbOrAddr1, out=kbOrAddr);
+    // Not(in=kbOrAddr, out=kbOrAddrNot);
+    // And(a=addr0And1, b=kbOrAddrNot, out=kbAddr);
+    And(a=address[14], b=address[13], out=kbAddr);
 
-    Keyboard(out=kbdOut);
+    // 0 0 false
+    // 0 1 ram
+    // 1 0 screen
+    // 1 1 kb
+    // which addr
+    Or(a=ramAddr, b=kbAddr, out=addrSel0);
+    Or(a=screenAddr, b=kbAddr, out=addrSel1);
 
-    Mux16(a=kbdOut, b=ram16kOut, sel=isRam16k, out=outTmp1);
-    Mux16(a=outTmp1, b=screenOut, sel=addrInScreenRange, out=out);
+    // load
+    DMux4Way(in=load, sel[0]=addrSel0, sel[1]=addrSel1, a=nonLoad, b=ramLoad, c=screenLoad, d=kbLoad);
+
+    // memory
+    RAM16K(in=in, load=ramLoad, address=address[0..13], out=ramOut);
+    Screen(in=in, load=screenLoad, address=address[0..12], out=screenOut);
+    Keyboard(out=kbOut);
+
+    // out
+    Mux4Way16(a=false, b=ramOut, c=screenOut, d=kbOut, sel[0]=addrSel0, sel[1]=addrSel1, out=out);
 }
