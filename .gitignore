@@ -3,3 +3,6 @@ tools
 projects/00
 projects/**/*.out
 projects/**/*.zip
+projects/04/**/*.hack
+projects/06/HackAssembler/target
+projects/06/**/*.hack
