@@ -1,3 +1,4 @@
+pub mod code;
 pub mod parser;
 pub mod symbol_table;
 
@@ -58,9 +59,12 @@ fn main() -> std::io::Result<()> {
 
     // first pass
     line_with_machine_addr(parser::parse(file_path)?)
-        .for_each(|(line, machine_addr)| {
+        // filter white space
+        .filter(line_with_num_not_white_space)
+        .for_each(|LineWithAddr { line, addr }| {
+            // set label address in the symbol table
             if let Line::Label { name } = &line {
-                symbol_table.set_label(name.clone(), machine_addr.into());
+                symbol_table.set_label(name.clone(), addr.unwrap());
             }
         });
 
@@ -71,37 +75,47 @@ fn main() -> std::io::Result<()> {
 
     // second pass
     line_with_machine_addr(parser::parse(file_path)?)
-        .filter(|(line, machine_addr)| match line {
-            Line::WhiteSpace | Line::Label { .. } => false,
-            _ => true,
-        })
-        .for_each(|(line, machine_addr)| {
+        // filter white space
+        .filter(line_with_num_not_white_space)
+        // filter label
+        .filter(line_with_num_not_label)
+        .for_each(|LineWithAddr { line, addr: _ }| {
+
+            // set variable address
+            if let Line::ACommand { ref symbol } = line {
+                if try_convert_numeric_addr(&symbol).is_none() {
+                    if symbol_table.get_addr(&symbol).is_none() {
+                        symbol_table.set_var_memory(symbol.clone());
+                    }
+                }
+            }
 
             let machine_code = match line {
-                Line::ACommand { symbol } => {
+                Line::ACommand { ref symbol } => {
                     let addr: Addr = if let Some(addr) = try_convert_numeric_addr(&symbol) {
                         addr
                     } else {
-                        if let Some(&addr) = symbol_table.get_addr(&symbol) {
-                            addr
-                        } else {
-                            *symbol_table.set_var_memory(symbol.clone())
-                        }
+                        *symbol_table.get_addr(&symbol).unwrap()
                     };
 
-                    decode_a_command(addr)
+                    code::decode_a_command(addr)
                 },
                 Line::CCommand { dest, comp, jump } => {
-                    decode_c_command(dest, comp, jump)
+                    code::decode_c_command(dest, comp, jump)
                 },
                 _ => panic!("get machine code failed!"),
             };
 
             // write machine code to hack file
-            hack_file.write_all(format!("{machine_code}\n").as_bytes());
+            hack_file.write_all(format!("{machine_code}\n").as_bytes()).expect("write hack file error!");
         });
 
     Ok(())
+}
+
+struct LineWithAddr {
+    pub line: Line,
+    pub addr: Option<Addr>,
 }
 
 fn is_asm_file(path: &str) -> bool {
@@ -126,28 +140,43 @@ fn get_hack_path(asm_path: &str) -> String {
     
 }
 
-fn line_with_machine_addr(iterator: impl Iterator<Item=Line>) -> impl Iterator<Item=(Line, u16)> {
+fn line_with_machine_addr(iterator: impl Iterator<Item=Line>) -> impl Iterator<Item=LineWithAddr> {
     
-    iterator.filter(|line| match line {
-            Line:: WhiteSpace => false,
-            _ => true,
-        })
-        .scan(0, |machine_addr, line| {
-            let current_addr = *machine_addr;
+    iterator.scan(0_u16, |machine_addr, line| {
+        let current_addr = *machine_addr;
 
-            match &line {
-                Line::Label { .. } => (),
-                _ => {
-                    *machine_addr += 1;
-                },
-            };
-            // if ! let Line::Label { .. } = &line {
-            // } else {
-                
-            // }
+        // next addr
+        match &line {
+            Line::Label { .. } | Line::WhiteSpace => (),
+            _ => {
+                *machine_addr += 1;
+            },
+        };
 
-            Some((line, current_addr))
-        })
+        let addr = if let Line::WhiteSpace = line {
+            None
+        } else {
+            Some(current_addr.into())
+        };
+
+        Some(LineWithAddr { line, addr })
+    })
+}
+
+fn line_with_num_not_white_space(LineWithAddr { line, addr: _ }: &LineWithAddr) -> bool {
+    if let Line::WhiteSpace = line {
+        false
+    } else {
+        true
+    }
+}
+
+fn line_with_num_not_label(LineWithAddr { line, addr: _ }: &LineWithAddr) -> bool {
+    if let Line::Label { .. } = line {
+        false
+    } else {
+        true
+    }
 }
 
 fn try_convert_numeric_addr(symbol: &str) -> Option<Addr> {
@@ -164,74 +193,4 @@ fn try_convert_numeric_addr(symbol: &str) -> Option<Addr> {
     } else {
         None
     }
-}
-
-fn decode_a_command(addr: Addr) -> String {
-    format!("{:016b}", u16::from(addr))
-}
-
-fn decode_c_command(dest: Option<String>, comp: String, jump: Option<String>) -> String {
-    let dest = if let Some(dest) = dest {
-        match dest.as_str() {
-            "M" => "001",
-            "D" => "010",
-            "MD" => "011",
-            "A" => "100",
-            "AM" => "101",
-            "AD" => "110",
-            "AMD" => "111",
-            _ => panic!("decode dest({dest}) failed!"),
-        }
-    } else {
-        "000"
-    };
-
-    let comp = match comp.as_str() {
-        "0" => "0101010",
-        "1" => "0111111",
-        "-1" => "0111010",
-        "D" => "0001100",
-        "A" => "0110000",
-        "M" => "1110000",
-        "!D" => "0001111",
-        "!A" => "0110001",
-        "!M" => "1110001",
-        "-D" => "1001111",
-        "-A" => "0110011",
-        "-M" => "1110011",
-        "D+1" => "0011111",
-        "A+1" => "0110111",
-        "M+1" => "1110111",
-        "D-1" => "0001110",
-        "A-1" => "0110010",
-        "M-1" => "1110010",
-        "D+A" => "0000010",
-        "D+M" => "1000010",
-        "D-A" => "0010011",
-        "D-M" => "1010011",
-        "A-D" => "0000111",
-        "M-D" => "1000111",
-        "D&A" => "0000000",
-        "D&M" => "1000000",
-        "D|A" => "0010101",
-        "D|M" => "1010101",
-        _ => panic!("decode comp({comp}) failed!"),
-    };
-
-    let jump = if let Some(jump) = jump {
-        match jump.as_str() {
-            "JGT" => "001",
-            "JEQ" => "010",
-            "JGE" => "011",
-            "JLT" => "100",
-            "JNE" => "101",
-            "JLE" => "110",
-            "JMP" => "111",
-            _ => panic!("decode jump({jump}) failed!"),
-        }
-    } else {
-        "000"
-    };
-
-    format!("111{comp}{dest}{jump}")
 }
