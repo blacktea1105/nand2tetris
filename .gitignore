@@ -6,3 +6,6 @@ projects/**/*.zip
 projects/04/**/*.hack
 projects/06/HackAssembler/target
 projects/06/**/*.hack
+projects/07/**/*.asm
+projects/07/**/__pycache__/
+projects/07/vm_translator/target
